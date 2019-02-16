@@ -1,0 +1,10 @@
+<!doctype html>
+<title>GitHub Overview</title>
+<h1>Review Requested</h1>
+{% for issue in requested_issues %}
+    <p><a href="/pr/{{ issue.repo_owner }}/{{ issue.repo_name }}/{{ issue.number }}">{{ issue.title }}</a></p>
+{% endfor %}
+<h1>Created</h1>
+{% for issue in created_issues %}
+    <p><a href="/pr/{{ issue.repo_owner }}/{{ issue.repo_name }}/{{ issue.number }}">{{ issue.title }}</a></p>
+{% endfor %}
