@@ -42,6 +42,9 @@ def overview():
             reviewing: search(query: "is:open is:pr review-requested:FuegoFro archived:false" type:ISSUE first:100) {
                 ... prDetails
             }
+            reviewed: search(query: "is:open is:pr reviewed-by:FuegoFro archived:false" type:ISSUE first:100) {
+                ... prDetails
+            }
         
         }
         fragment prDetails on SearchResultItemConnection {
@@ -61,9 +64,15 @@ def overview():
     """
     )["data"]
     requested_issues = [PrOverview.from_pr_response(pr) for pr in data["reviewing"]["nodes"]]
+    waiting_on_author = [PrOverview.from_pr_response(pr) for pr in data["reviewed"]["nodes"]]
     created_issues = [PrOverview.from_pr_response(pr) for pr in data["authored"]["nodes"]]
 
-    return render_template("overview.html", requested_issues=requested_issues, created_issues=created_issues)
+    return render_template(
+        "overview.html",
+        requested_issues=requested_issues,
+        waiting_on_author=waiting_on_author,
+        created_issues=created_issues,
+    )
 
 
 def _parse_datetime(raw_datetime: str) -> datetime:
