@@ -66,13 +66,13 @@ def overview():
     requested_issues = [PrOverview.from_pr_response(pr) for pr in data["reviewing"]["nodes"]]
     waiting_on_author = [PrOverview.from_pr_response(pr) for pr in data["reviewed"]["nodes"]]
     created_issues = [PrOverview.from_pr_response(pr) for pr in data["authored"]["nodes"]]
+    issue_categories = [
+        (requested_issues, "Review requested"),
+        (waiting_on_author, "Waiting on author"),
+        (created_issues, "Created"),
+    ]
 
-    return render_template(
-        "overview.html",
-        requested_issues=requested_issues,
-        waiting_on_author=waiting_on_author,
-        created_issues=created_issues,
-    )
+    return render_template("overview.html", issue_categories=issue_categories)
 
 
 def _parse_datetime(raw_datetime: str) -> datetime:

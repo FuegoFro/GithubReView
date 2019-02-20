@@ -1,14 +1,12 @@
 <!doctype html>
-<title>GitHub Overview</title>
-<h1>Review requested</h1>
-{% for issue in requested_issues %}
-    <p><a href="/pr/{{ issue.repo_owner }}/{{ issue.repo_name }}/{{ issue.number }}">{{ issue.title }}</a></p>
+<head>
+    <title>GitHub Overview</title>
+</head>
+<body>
+{% for issues, title in issue_categories %}
+    <h1>{{ title }}</h1>
+    {% for issue in issues %}
+        <p><a href="/pr/{{ issue.repo_owner }}/{{ issue.repo_name }}/{{ issue.number }}">{{ issue.title }}</a></p>
+    {% endfor %}
 {% endfor %}
-<h1>Waiting on author</h1>
-{% for issue in waiting_on_author %}
-    <p><a href="/pr/{{ issue.repo_owner }}/{{ issue.repo_name }}/{{ issue.number }}">{{ issue.title }}</a></p>
-{% endfor %}
-<h1>Created</h1>
-{% for issue in created_issues %}
-    <p><a href="/pr/{{ issue.repo_owner }}/{{ issue.repo_name }}/{{ issue.number }}">{{ issue.title }}</a></p>
-{% endfor %}
+</body>
