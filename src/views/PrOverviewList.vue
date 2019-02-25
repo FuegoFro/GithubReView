@@ -1,5 +1,8 @@
 <template>
-    <div>
+    <div v-if="overviewCategories === null">
+        <p><i>Loading...</i></p>
+    </div>
+    <div v-else>
         <template v-for="overviewCategory in overviewCategories">
             <h1>{{ overviewCategory.title }}</h1>
             <pr-overview v-for="overview in overviewCategory.overviews" :prOverview="overview"></pr-overview>
@@ -26,19 +29,25 @@ function overviewFromResponse(response: any): PrOverviewData {
     components: {PrOverview},
 })
 export default class PrOverviewList extends Vue {
-    overviewCategories: PrOverviewCategory[] = [];
+    overviewCategories?: PrOverviewCategory[] = null;
 
     async mounted(): void {
-        // TODO - Don't hard code username
+        const username = await viewerUsername();
+        const vars = {
+            authored_search: `is:open is:pr archived:false author:${username}`,
+            reviewing_search: `is:open is:pr archived:false review-requested:${username}`,
+            reviewed_search: `is:open is:pr archived:false reviewed-by:${username}`,
+        };
+
         const data = await graphqlQuery(`
-            query {
-                authored: search(query: "is:open is:pr author:FuegoFro archived:false" type:ISSUE first:100) {
+            query($authored_search: String!, $reviewing_search: String!, $reviewed_search: String!) {
+                authored: search(query: $authored_search type:ISSUE first:100) {
                     ... prDetails
                 }
-                reviewing: search(query: "is:open is:pr review-requested:FuegoFro archived:false" type:ISSUE first:100) {
+                reviewing: search(query: $reviewing_search type:ISSUE first:100) {
                     ... prDetails
                 }
-                reviewed: search(query: "is:open is:pr reviewed-by:FuegoFro archived:false" type:ISSUE first:100) {
+                reviewed: search(query: $reviewed_search type:ISSUE first:100) {
                     ... prDetails
                 }
 
@@ -57,7 +66,7 @@ export default class PrOverviewList extends Vue {
                     }
                 }
             }
-        `);
+        `, vars);
         const reviewRequested = new PrOverviewCategory('Review request', data.reviewing.nodes.map(overviewFromResponse));
         const waitingOnAuthor = new PrOverviewCategory('Waiting on author', data.reviewed.nodes.map(overviewFromResponse));
         const created = new PrOverviewCategory('Created', data.authored.nodes.map(overviewFromResponse));
