@@ -31,7 +31,9 @@
     "chai": "^4.1.2",
     "lint-staged": "^8.1.0",
     "node-sass": "^4.9.0",
+    "prettier": "1.16.4",
     "sass-loader": "^7.1.0",
+    "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.0.0",
     "vue-template-compiler": "^2.5.21"
   },
@@ -41,10 +43,12 @@
   "lint-staged": {
     "*.ts": [
       "vue-cli-service lint",
+      "prettier --write",
       "git add"
     ],
     "*.vue": [
       "vue-cli-service lint",
+      "prettier --write",
       "git add"
     ]
   }

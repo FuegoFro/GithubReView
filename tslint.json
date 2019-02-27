@@ -1,7 +1,8 @@
 {
   "defaultSeverity": "error",
   "extends": [
-    "tslint:recommended"
+    "tslint:recommended",
+    "tslint-config-prettier"
   ],
   "linterOptions": {
     "exclude": [
@@ -15,6 +16,7 @@
     "ordered-imports": false,
     "object-literal-sort-keys": false,
     "no-consecutive-blank-lines": false,
-    "member-access": [true, "no-public"]
+    "member-access": [true, "no-public"],
+    "max-classes-per-file": false
   }
 }
