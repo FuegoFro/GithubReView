@@ -1,5 +1,6 @@
 <template>
-  <div>
+  <p v-if="comments === null"><i>Loading...</i></p>
+  <div v-else>
     <h1>{{ title }}</h1>
     <h1>Comments</h1>
     <template v-for="top_level_comment in comments">
