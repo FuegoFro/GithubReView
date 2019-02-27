@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import { PrOverviewData } from '@/pr_overview';
+import { PrOverviewData } from '../pr_overview';
 
 @Component({})
 export default class PrOverview extends Vue {

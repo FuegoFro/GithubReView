@@ -13,7 +13,7 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import { graphqlQuery, viewerUsername } from '@/graphql_helpers';
-import PrOverview from '@/views/PrOverview.vue';
+import PrOverview from '@/components/PrOverview.vue';
 import { PrOverviewData, PrOverviewCategory } from '@/pr_overview';
 
 function overviewFromResponse(response: any): PrOverviewData {

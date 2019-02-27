@@ -14,7 +14,7 @@ import axios from 'axios';
 
 const URL = 'https://api.github.com/graphql';
 
-export async function graphqlQuery(query: string, variables: { [key: string]: string } = {}): Promise<any> {
+export async function graphqlQuery(query: string, variables: { [key: string]: any } = {}): Promise<any> {
   const data: { [key: string]: any } = { query };
   if (variables) {
     data.variables = variables;
