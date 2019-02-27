@@ -23,7 +23,7 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import { graphqlQuery } from '@/graphql_helpers';
 
-function compareValues(a, b): number {
+function compareValues<T extends string | number>(a: T, b: T): number {
   if (a === b) {
     return 0;
   } else if (a < b) {
@@ -78,13 +78,13 @@ class TopLevelComment extends BaseComment {
 
 @Component({})
 export default class PrDetails extends Vue {
-  title?: string = null;
-  comments?: TopLevelComment[] = null;
-  @Prop(String) repoOwner: string;
-  @Prop(String) repoName: string;
-  @Prop(Number) prNumber: number;
+  title: string | null = null;
+  comments: TopLevelComment[] | null = null;
+  @Prop(String) repoOwner!: string;
+  @Prop(String) repoName!: string;
+  @Prop(Number) prNumber!: number;
 
-  async mounted(): void {
+  async mounted() {
     const vars = { repoOwner: this.repoOwner, repoName: this.repoName, prNumber: this.prNumber };
     const data = await graphqlQuery(
       `
@@ -129,7 +129,9 @@ export default class PrDetails extends Vue {
 
     const rawComments = rawPr.comments.nodes.concat(rawPr.reviews.nodes);
     const comments: TopLevelComment[] = rawComments.map(TopLevelComment.fromResponse);
-    comments.sort((a: TopLevelComment, b: TopLevelComment) => compareValues(a.createdAt, b.createdAt));
+    comments.sort((a: TopLevelComment, b: TopLevelComment) =>
+      compareValues(a.createdAt.getTime(), b.createdAt.getTime()),
+    );
     this.comments = comments;
   }
 }

@@ -24,9 +24,9 @@ function overviewFromResponse(response: any): PrOverviewData {
   components: { PrOverview },
 })
 export default class PrOverviewList extends Vue {
-  overviewCategories?: PrOverviewCategory[] = null;
+  overviewCategories: PrOverviewCategory[] | null = null;
 
-  async mounted(): void {
+  async mounted() {
     const username = await viewerUsername();
     const vars = {
       authored_search: `is:open is:pr archived:false author:${username}`,
