@@ -33,60 +33,70 @@ function compareValues<T extends string | number>(a: T, b: T): number {
   }
 }
 
-class BaseComment {
-  constructor(public authorName: string, public body: string, public createdAt: Date) {}
+interface BaseCommentI {
+  authorName: string;
+  body: string;
+  createdAt: Date;
 }
 
-class InlineComment extends BaseComment {
-  static fromResponse(response: any): InlineComment {
-    return new InlineComment(
-      response.author.login,
-      response.body,
-      new Date(response.createdAt),
-      response.path,
-      response.originalPosition,
-    );
-  }
-  constructor(authorName: string, body: string, createdAt: Date, public path: string, public line: number) {
-    super(authorName, body, createdAt);
-  }
+interface InlineCommentI extends BaseCommentI {
+  path: string;
+  line: number;
 }
 
-class TopLevelComment extends BaseComment {
-  static fromResponse(response: any): TopLevelComment {
-    const rawInlineComments = response.comments;
-    const inlineComments =
-      rawInlineComments === null || rawInlineComments === undefined
-        ? []
-        : rawInlineComments.nodes.map(InlineComment.fromResponse);
-    inlineComments.sort(
-      (a: InlineComment, b: InlineComment): number => {
-        if (a.path !== b.path) {
-          return compareValues(a.path, b.path);
-        }
-        return compareValues(a.line, b.line);
-      },
-    );
+interface TopLevelCommentI extends BaseCommentI {
+  inlineComments: InlineCommentI[];
+}
 
-    return new TopLevelComment(response.author.login, response.body, new Date(response.createdAt), inlineComments);
-  }
+function parseTopLevelComment(rawComment: any): TopLevelCommentI {
+  const rawInlineComments = rawComment.comments;
+  const inlineComments =
+    rawInlineComments === null || rawInlineComments === undefined
+      ? []
+      : rawInlineComments.nodes.map(parseInlineComment);
+  inlineComments.sort(
+    (a: InlineCommentI, b: InlineCommentI): number => {
+      if (a.path !== b.path) {
+        return compareValues(a.path, b.path);
+      }
+      return compareValues(a.line, b.line);
+    },
+  );
 
-  constructor(authorName: string, body: string, createdAt: Date, public inlineComments: InlineComment[]) {
-    super(authorName, body, createdAt);
-  }
+  return {
+    authorName: rawComment.author.login,
+    body: rawComment.body,
+    createdAt: new Date(rawComment.createdAt),
+    inlineComments,
+  };
+}
+
+function parseInlineComment(rawComment: any): InlineCommentI {
+  return {
+    authorName: rawComment.author.login,
+    body: rawComment.body,
+    createdAt: new Date(rawComment.createdAt),
+    path: rawComment.path,
+    line: rawComment.originalPosition,
+  };
 }
 
 @Component({})
 export default class PrDetails extends Vue {
   title: string | null = null;
-  comments: TopLevelComment[] | null = null;
+  comments: TopLevelCommentI[] | null = null;
   @Prop(String) repoOwner!: string;
   @Prop(String) repoName!: string;
   @Prop(Number) prNumber!: number;
 
+  // noinspection JSUnusedGlobalSymbols
   async mounted() {
-    const vars = { repoOwner: this.repoOwner, repoName: this.repoName, prNumber: this.prNumber };
-    const data = await graphqlQuery(
+    const rawPr = await this.fetchData();
+    this.populateData(rawPr);
+  }
+
+  private async fetchData() {
+    return graphqlQuery(
       `
             query($repoOwner: String!, $repoName: String!, $prNumber: Int!) {
                 repository(owner: $repoOwner, name: $repoName) {
@@ -121,15 +131,18 @@ export default class PrDetails extends Vue {
                 createdAt
             }
         `,
-      vars,
+      { repoOwner: this.repoOwner, repoName: this.repoName, prNumber: this.prNumber },
     );
+  }
 
+  private populateData(data: any) {
     const rawPr = data.repository.pullRequest;
+
     this.title = rawPr.title;
 
     const rawComments = rawPr.comments.nodes.concat(rawPr.reviews.nodes);
-    const comments: TopLevelComment[] = rawComments.map(TopLevelComment.fromResponse);
-    comments.sort((a: TopLevelComment, b: TopLevelComment) =>
+    const comments: TopLevelCommentI[] = rawComments.map(parseTopLevelComment);
+    comments.sort((a: TopLevelCommentI, b: TopLevelCommentI) =>
       compareValues(a.createdAt.getTime(), b.createdAt.getTime()),
     );
     this.comments = comments;
