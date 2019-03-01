@@ -3,16 +3,16 @@
   <div v-else>
     <h1>{{ title }}</h1>
     <h1>Comments</h1>
-    <template v-for="top_level_comment in comments">
+    <template v-for="topLevelComment in comments">
       <h2>
-        <b>{{ top_level_comment.authorName }}</b> at <i>{{ top_level_comment.createdAt }}</i>
+        <b>{{ topLevelComment.authorName }}</b> at <i>{{ topLevelComment.createdAt }}</i>
       </h2>
-      <p v-if="top_level_comment.body" class="comment_body">{{ top_level_comment.body }}</p>
-      <template v-for="inline_comment in top_level_comment.inlineComments">
+      <div v-if="topLevelComment.body" class="comment_body" v-html="topLevelComment.body"></div>
+      <template v-for="inlineComment in topLevelComment.inlineComments">
         <h3>
-          <i>{{ inline_comment.path }}:{{ inline_comment.line }}</i>
+          <i>{{ inlineComment.path }}:{{ inlineComment.line }}</i>
         </h3>
-        <p class="comment_body">{{ inline_comment.body }}</p>
+        <div v-html="inlineComment.body"></div>
       </template>
       <hr />
     </template>
@@ -65,7 +65,7 @@ function parseTopLevelComment(rawComment: any): TopLevelCommentI {
 
   return {
     authorName: rawComment.author.login,
-    body: rawComment.body,
+    body: rawComment.bodyHTML,
     createdAt: new Date(rawComment.createdAt),
     inlineComments,
   };
@@ -74,7 +74,7 @@ function parseTopLevelComment(rawComment: any): TopLevelCommentI {
 function parseInlineComment(rawComment: any): InlineCommentI {
   return {
     authorName: rawComment.author.login,
-    body: rawComment.body,
+    body: rawComment.bodyHTML,
     createdAt: new Date(rawComment.createdAt),
     path: rawComment.path,
     line: rawComment.originalPosition,
@@ -127,7 +127,7 @@ export default class PrDetails extends Vue {
                 author {
                     login
                 }
-                body
+                bodyHTML
                 createdAt
             }
         `,
