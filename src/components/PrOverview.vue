@@ -12,6 +12,7 @@ export interface PrOverviewI {
   num: number;
   repoOwner: string;
   repoName: string;
+  uniqueKey: string;
 }
 
 @Component({})

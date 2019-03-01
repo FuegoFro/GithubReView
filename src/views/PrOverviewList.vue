@@ -5,7 +5,11 @@
   <div v-else>
     <template v-for="overviewCategory in overviewCategories">
       <h1>{{ overviewCategory.title }}</h1>
-      <pr-overview v-for="overview in overviewCategory.overviews" :prOverview="overview"></pr-overview>
+      <pr-overview
+        v-for="overview in overviewCategory.overviews"
+        :prOverview="overview"
+        :key="overview.uniqueKey"
+      ></pr-overview>
     </template>
   </div>
 </template>
@@ -21,11 +25,16 @@ interface PrOverviewCategoryI {
 }
 
 function parsePrOverview(response: any): PrOverviewI {
+  const num = response.number;
+  const repoOwner = response.repository.owner.login;
+  const repoName = response.repository.name;
+
   return {
     title: response.title,
-    num: response.number,
-    repoOwner: response.repository.owner.login,
-    repoName: response.repository.name,
+    num,
+    repoOwner,
+    repoName,
+    uniqueKey: `${repoOwner}/${repoName}/${num}`,
   };
 }
 
