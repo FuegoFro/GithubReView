@@ -14,6 +14,7 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
+import router from '@/router';
 
 @Component({})
 export default class Login extends Vue {
@@ -28,6 +29,7 @@ export default class Login extends Vue {
     const storedToken = localStorage.token;
     if (storedToken) {
       this.savedToken = storedToken;
+      this.continueToApp();
     }
   }
 
@@ -38,8 +40,7 @@ export default class Login extends Vue {
   }
 
   continueToApp(): void {
-    // tslint:disable-next-line:no-console
-    console.log('Would keep going...');
+    router.push({ name: 'prsOverview' });
   }
 }
 </script>

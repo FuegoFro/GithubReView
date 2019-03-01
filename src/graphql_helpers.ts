@@ -1,15 +1,3 @@
-/*
-
-
-def graphql_query(query: str, variables: Optional[Dict[str, Any]] = None) -> Any:
-    data = {"query": query}
-    if variables is not None:
-        data["variables"] = variables
-    return requests.post(URL, headers=HEADERS, data=json.dumps(data)).json()
-
- */
-
-// private const HEADERS = {"Authorization": `bearer {(Path.home() / ".github_token").read_text()}`};
 import axios from 'axios';
 
 const URL = 'https://api.github.com/graphql';

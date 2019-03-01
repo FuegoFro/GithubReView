@@ -6,7 +6,7 @@ import PrDetails from '@/views/PrDetails.vue';
 
 Vue.use(Router);
 
-export default new Router({
+const router = new Router({
   mode: 'history',
   base: process.env.BASE_URL,
   routes: [
@@ -34,3 +34,13 @@ export default new Router({
     },
   ],
 });
+
+router.beforeEach((to, from, next) => {
+  if (!localStorage.token && to.name !== 'login') {
+    next('login');
+  } else {
+    next();
+  }
+});
+
+export default router;
