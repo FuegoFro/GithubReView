@@ -13,18 +13,27 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import { graphqlQuery, viewerUsername } from '@/graphql_helpers';
-import PrOverview from '@/components/PrOverview.vue';
-import { PrOverviewData, PrOverviewCategory } from '@/pr_overview';
+import PrOverview, { PrOverviewI } from '@/components/PrOverview.vue';
 
-function overviewFromResponse(response: any): PrOverviewData {
-  return new PrOverviewData(response.title, response.number, response.repository.owner.login, response.repository.name);
+interface PrOverviewCategoryI {
+  title: string;
+  overviews: PrOverviewI[];
+}
+
+function parsePrOverview(response: any): PrOverviewI {
+  return {
+    title: response.title,
+    num: response.number,
+    repoOwner: response.repository.owner.login,
+    repoName: response.repository.name,
+  };
 }
 
 @Component({
   components: { PrOverview },
 })
 export default class PrOverviewList extends Vue {
-  overviewCategories: PrOverviewCategory[] | null = null;
+  overviewCategories: PrOverviewCategoryI[] | null = null;
 
   async mounted() {
     const username = await viewerUsername();
@@ -65,9 +74,15 @@ export default class PrOverviewList extends Vue {
         `,
       vars,
     );
-    const reviewRequested = new PrOverviewCategory('Review request', data.reviewing.nodes.map(overviewFromResponse));
-    const waitingOnAuthor = new PrOverviewCategory('Waiting on author', data.reviewed.nodes.map(overviewFromResponse));
-    const created = new PrOverviewCategory('Created', data.authored.nodes.map(overviewFromResponse));
+    const reviewRequested: PrOverviewCategoryI = {
+      title: 'Review request',
+      overviews: data.reviewing.nodes.map(parsePrOverview),
+    };
+    const waitingOnAuthor: PrOverviewCategoryI = {
+      title: 'Waiting on author',
+      overviews: data.reviewed.nodes.map(parsePrOverview),
+    };
+    const created: PrOverviewCategoryI = { title: 'Created', overviews: data.authored.nodes.map(parsePrOverview) };
     this.overviewCategories = [reviewRequested, waitingOnAuthor, created];
   }
 }

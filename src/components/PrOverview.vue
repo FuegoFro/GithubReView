@@ -6,11 +6,17 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import { PrOverviewData } from '../pr_overview';
+
+export interface PrOverviewI {
+  title: string;
+  num: number;
+  repoOwner: string;
+  repoName: string;
+}
 
 @Component({})
 export default class PrOverview extends Vue {
-  @Prop(PrOverviewData) prOverview!: PrOverviewData;
+  @Prop(Object) prOverview!: PrOverviewI;
 
   get url() {
     return `/pr/${this.prOverview.repoOwner}/${this.prOverview.repoName}/${this.prOverview.num}`;
