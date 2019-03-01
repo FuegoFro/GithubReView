@@ -1,2 +1,2 @@
-# github_re_view
+# GithubReView
 An alternative front-end for GitHub PRs
