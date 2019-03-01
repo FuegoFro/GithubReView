@@ -1,6 +1,8 @@
 <template>
   <p>
-    <a :href="url">{{ prOverview.title }}</a>
+    <router-link :to="{ name: 'prDetails', params: prOverview }">
+      {{ prOverview.title }}
+    </router-link>
   </p>
 </template>
 
@@ -9,7 +11,7 @@ import { Component, Prop, Vue } from 'vue-property-decorator';
 
 export interface PrOverviewI {
   title: string;
-  num: number;
+  prNumber: number;
   repoOwner: string;
   repoName: string;
   uniqueKey: string;
@@ -18,10 +20,6 @@ export interface PrOverviewI {
 @Component({})
 export default class PrOverview extends Vue {
   @Prop(Object) prOverview!: PrOverviewI;
-
-  get url() {
-    return `/pr/${this.prOverview.repoOwner}/${this.prOverview.repoName}/${this.prOverview.num}`;
-  }
 }
 </script>
 

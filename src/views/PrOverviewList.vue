@@ -31,7 +31,7 @@ function parsePrOverview(response: any): PrOverviewI {
 
   return {
     title: response.title,
-    num,
+    prNumber: num,
     repoOwner,
     repoName,
     uniqueKey: `${repoOwner}/${repoName}/${num}`,

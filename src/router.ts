@@ -12,12 +12,12 @@ export default new Router({
   routes: [
     {
       path: '/',
-      name: 'prs_overview',
+      name: 'prsOverview',
       component: ListPrs,
     },
     {
       path: '/pr/:repoOwner/:repoName/:prNumber',
-      name: 'pr_details',
+      name: 'prDetails',
       component: PrDetails,
       props: (route: Route) => {
         const params: { [key: string]: any } = route.params;
