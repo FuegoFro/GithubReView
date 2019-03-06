@@ -10,11 +10,11 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
 export interface PrOverviewI {
+  id: string;
   title: string;
   prNumber: number;
   repoOwner: string;
   repoName: string;
-  uniqueKey: string;
 }
 
 @Component({})
