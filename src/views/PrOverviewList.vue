@@ -119,6 +119,8 @@ export default class PrOverviewList extends Vue {
     const reviewRequested = parsePrOverviewNodes(data.reviewRequested);
     const reviewedBy = parsePrOverviewNodes(data.reviewedBy);
 
+    const authoredIds = new Set(authoredAll.map((pr) => pr.id));
+
     const collectById = (prOverviews: PrOverviewI[]): { [key: string]: PrOverviewI } => {
       const collected: { [key: string]: PrOverviewI } = {};
       for (const prOverview of prOverviews) {
@@ -133,16 +135,13 @@ export default class PrOverviewList extends Vue {
     const authoredWaiting = authoredAll.filter((authored) => authoredActionable[authored.id] === undefined);
 
     const reviewRequestedIds = new Set(reviewRequested.map((pr) => pr.id));
-    const reviewedByFiltered = reviewedBy.filter(
-      (pr) => !reviewRequestedIds.has(pr.id) && authoredActionable[pr.id] === undefined,
-    );
-
-    const waitingForOthers = collectById(authoredWaiting.concat(reviewedByFiltered));
+    const reviewedByFiltered = reviewedBy.filter((pr) => !reviewRequestedIds.has(pr.id) && !authoredIds.has(pr.id));
 
     this.overviewCategories = [
       { title: 'Blocking others', overviews: reviewRequested },
       { title: 'Actionable', overviews: Object.values(authoredActionable) },
-      { title: 'Waiting on others', overviews: Object.values(waitingForOthers) },
+      { title: 'Waiting on author', overviews: reviewedByFiltered },
+      { title: 'Waiting on reviewers', overviews: authoredWaiting },
     ];
   }
 }
