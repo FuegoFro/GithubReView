@@ -1,20 +1,37 @@
 <template>
-  <p v-if="comments === null"><i>Loading...</i></p>
+  <p v-if="activityItems === null"><i>Loading...</i></p>
   <div v-else>
     <h1>{{ title }}</h1>
-    <h1>Comments</h1>
-    <template v-for="topLevelComment in comments">
-      <h2>
-        <b>{{ topLevelComment.authorName }}</b> at <i>{{ topLevelComment.createdAt }}</i>
-      </h2>
-      <div v-if="topLevelComment.body" class="comment_body" v-html="topLevelComment.body"></div>
-      <template v-for="inlineComment in topLevelComment.inlineComments">
+    <h2>Activity</h2>
+    <template v-for="activityItem in activityItems">
+      <template v-if="isCommit(activityItem)">
         <h3>
-          <i>{{ inlineComment.path }}:{{ inlineComment.line }}</i>
+          <b>{{ activityItem.authorName }}</b> pushed a commit at <i>{{ activityItem.sortDate }}</i>
         </h3>
-        <div v-html="inlineComment.body"></div>
+        <p>
+          Authored date - <i>{{ activityItem.authoredDate }}</i>
+          <br />
+          Committed date - <i>{{ activityItem.committedDate }}</i>
+          <br />
+          Pushed date - <i>{{ activityItem.pushedDate }}</i>
+        </p>
+        <p>{{ activityItem.messageHeadline }}</p>
+        <p>{{ activityItem.messageBody }}</p>
+        <hr />
       </template>
-      <hr />
+      <template v-else>
+        <h3>
+          <b>{{ activityItem.authorName }}</b> commented at <i>{{ activityItem.createdAt }}</i>
+        </h3>
+        <div v-if="activityItem.body" class="comment_body" v-html="activityItem.body"></div>
+        <template v-for="inlineComment in activityItem.inlineComments">
+          <h4>
+            <i>{{ inlineComment.path }}:{{ inlineComment.line }}</i>
+          </h4>
+          <div v-html="inlineComment.body"></div>
+        </template>
+        <hr />
+      </template>
     </template>
   </div>
 </template>
@@ -46,6 +63,16 @@ interface InlineCommentI extends BaseCommentI {
 
 interface TopLevelCommentI extends BaseCommentI {
   inlineComments: InlineCommentI[];
+}
+
+interface CommitInfoI {
+  authorName: string;
+  messageHeadline: string;
+  messageBody: string;
+  authoredDate: Date;
+  committedDate: Date;
+  pushedDate: Date | null;
+  sortDate: Date;
 }
 
 function parseTopLevelComment(rawComment: any): TopLevelCommentI {
@@ -81,10 +108,25 @@ function parseInlineComment(rawComment: any): InlineCommentI {
   };
 }
 
+function parseCommitInfo(rawCommitNode: any): CommitInfoI {
+  const rawCommit = rawCommitNode.commit;
+  const pushedDate = rawCommit.pushedDate === null ? null : new Date(rawCommit.pushedDate);
+  const authoredDate = new Date(rawCommit.authoredDate);
+  return {
+    authorName: rawCommit.author.user.login,
+    messageHeadline: rawCommit.messageHeadline,
+    messageBody: rawCommit.messageBody,
+    authoredDate,
+    committedDate: new Date(rawCommit.committedDate),
+    pushedDate,
+    sortDate: pushedDate !== null ? pushedDate : authoredDate,
+  };
+}
+
 @Component({})
 export default class PrDetails extends Vue {
   title: string | null = null;
-  comments: TopLevelCommentI[] | null = null;
+  activityItems: Array<TopLevelCommentI | CommitInfoI> | null = null;
   @Prop(String) repoOwner!: string;
   @Prop(String) repoName!: string;
   @Prop(Number) prNumber!: number;
@@ -98,38 +140,54 @@ export default class PrDetails extends Vue {
   private async fetchData() {
     return graphqlQuery(
       `
-            query($repoOwner: String!, $repoName: String!, $prNumber: Int!) {
-                repository(owner: $repoOwner, name: $repoName) {
-                    pullRequest(number: $prNumber) {
-                        title
-                        comments(first: 100) {
-                            nodes {
-                                ...commentInfo
-                            }
-                        }
-                        reviews(first: 100) {
-                            nodes {
-                                ...commentInfo
-                                state
-                                comments(first: 100) {
-                                    nodes {
-                                        originalPosition
-                                        path
-                                        ...commentInfo
-                                    }
-                                }
-                            }
-                        }
+        query($repoOwner: String!, $repoName: String!, $prNumber: Int!) {
+          repository(owner: $repoOwner, name: $repoName) {
+            pullRequest(number: $prNumber) {
+              title
+              commits(first: 100) {
+                nodes {
+                  commit {
+                    author {
+                      user {
+                        login
+                      }
                     }
+                    messageHeadline
+                    messageBody
+                    authoredDate
+                    committedDate
+                    pushedDate
+                  }
                 }
-            }
-            fragment commentInfo on Comment {
-                author {
-                    login
+              }
+              comments(first: 100) {
+                nodes {
+                  ...commentInfo
                 }
-                bodyHTML
-                createdAt
+              }
+              reviews(first: 100) {
+                nodes {
+                  ...commentInfo
+                  state
+                  comments(first: 100) {
+                    nodes {
+                      originalPosition
+                      path
+                      ...commentInfo
+                    }
+                  }
+                }
+              }
             }
+          }
+        }
+        fragment commentInfo on Comment {
+          author {
+            login
+          }
+          bodyHTML
+          createdAt
+        }
         `,
       { repoOwner: this.repoOwner, repoName: this.repoName, prNumber: this.prNumber },
     );
@@ -142,10 +200,20 @@ export default class PrDetails extends Vue {
 
     const rawComments = rawPr.comments.nodes.concat(rawPr.reviews.nodes);
     const comments: TopLevelCommentI[] = rawComments.map(parseTopLevelComment);
-    comments.sort((a: TopLevelCommentI, b: TopLevelCommentI) =>
-      compareValues(a.createdAt.getTime(), b.createdAt.getTime()),
-    );
-    this.comments = comments;
+
+    const commits: CommitInfoI[] = rawPr.commits.nodes.map(parseCommitInfo);
+
+    const items = ([] as Array<TopLevelCommentI | CommitInfoI>).concat(comments).concat(commits);
+    items.sort((a: TopLevelCommentI | CommitInfoI, b: TopLevelCommentI | CommitInfoI) => {
+      const aTime = this.isCommit(a) ? a.sortDate : a.createdAt;
+      const bTime = this.isCommit(b) ? b.sortDate : b.createdAt;
+      return compareValues(aTime.getTime(), bTime.getTime());
+    });
+    this.activityItems = items;
+  }
+
+  private isCommit(item: TopLevelCommentI | CommitInfoI): item is CommitInfoI {
+    return (item as CommitInfoI).messageHeadline !== undefined;
   }
 }
 </script>
