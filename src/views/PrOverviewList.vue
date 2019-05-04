@@ -140,8 +140,8 @@ export default class PrOverviewList extends Vue {
     this.overviewCategories = [
       { title: 'Blocking others', overviews: reviewRequested },
       { title: 'Actionable', overviews: Object.values(authoredActionable) },
-      { title: 'Waiting on author', overviews: reviewedByFiltered },
       { title: 'Waiting on reviewers', overviews: authoredWaiting },
+      { title: 'Waiting on author', overviews: reviewedByFiltered },
     ];
   }
 }
