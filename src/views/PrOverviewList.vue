@@ -19,19 +19,41 @@ import { Component, Vue } from 'vue-property-decorator';
 import { graphqlQuery, viewerUsername } from '@/graphql_helpers';
 import PrOverview, { PrOverviewI } from '@/components/PrOverview.vue';
 
+enum PrReviewState {
+  REVIEW_REQUESTED = 'REVIEW_REQUESTED',
+  PENDING = 'PENDING',
+  COMMENTED = 'COMMENTED',
+  APPROVED = 'APPROVED',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+  DISMISSED = 'DISMISSED',
+}
+
 interface PrOverviewCategoryI {
   title: string;
   overviews: PrOverviewI[];
 }
 
-function parsePrOverviewNodes(response: any): PrOverviewI[] {
+interface PrReviewStateChangeI {
+  reviewerName: string;
+  state: PrReviewState;
+  createdAt: Date;
+}
+
+interface ExtendedPrOverviewI extends PrOverviewI {
+  authorName: string;
+  reviewStateEvents: PrReviewStateChangeI[];
+}
+
+function parsePrOverviewNodes(response: any): ExtendedPrOverviewI[] {
   return response.nodes.map(parsePrOverview);
 }
 
-function parsePrOverview(response: any): PrOverviewI {
+function parsePrOverview(response: any): ExtendedPrOverviewI {
   const num = response.number;
   const repoOwner = response.repository.owner.login;
   const repoName = response.repository.name;
+  const authorName = response.author.login;
+  const reviewStateEvents = parseReviewStateEvents(response.timelineItems.nodes);
 
   return {
     id: response.id,
@@ -39,7 +61,39 @@ function parsePrOverview(response: any): PrOverviewI {
     prNumber: num,
     repoOwner,
     repoName,
+    authorName,
+    reviewStateEvents,
   };
+}
+
+function parseReviewStateEvents(timelineNodes: any[]): PrReviewStateChangeI[] {
+  const events = [];
+  for (const node of timelineNodes) {
+    if (node.__typename === 'PullRequestReview') {
+      events.push({
+        reviewerName: node.author.login,
+        state: node.state,
+        createdAt: new Date(node.createdAt),
+      });
+    } else if (node.__typename === 'ReviewRequestedEvent') {
+      events.push({
+        reviewerName: node.requestedReviewer.login,
+        state: PrReviewState.REVIEW_REQUESTED,
+        createdAt: new Date(node.createdAt),
+      });
+    }
+  }
+  return events;
+}
+
+function getReviewStates(prOverview: ExtendedPrOverviewI): { [key: string]: PrReviewState } {
+  const states = {};
+  for (const reviewEvent of prOverview.reviewStateEvents) {
+    if (reviewEvent.state !== PrReviewState.COMMENTED) {
+      states[reviewEvent.reviewerName] = reviewEvent.state;
+    }
+  }
+  return states;
 }
 
 @Component({
@@ -60,21 +114,11 @@ export default class PrOverviewList extends Vue {
     //  - Changes requested (Waiting on others)
     //  - Review requested after changes requested (Blocking others)
     //  - Accepted by you (Waiting on others)
-    //
-    // # Actual categorization (semi-implementation of above)
-    //
-    // authored and review:changes_requested  -- Actionable!
-    // authored and review:approved  -- Actionable!
-    // authored (manually filter out above)
-    //
-    // review-requested  -- Important!
-    // reviewed-by (manually filter out above)
+
     const username = await viewerUsername();
     const searchPrefix = 'is:open is:pr archived:false';
     const vars = {
       authoredAllSearch: `${searchPrefix} author:${username}`,
-      authoredAcceptedSearch: `${searchPrefix} author:${username} review:approved`,
-      authoredChangesRequestedSearch: `${searchPrefix} author:${username} review:changes_requested`,
       reviewRequestedSearch: `${searchPrefix} review-requested:${username}`,
       reviewedBySearch: `${searchPrefix}  reviewed-by:${username}`,
     };
@@ -83,14 +127,10 @@ export default class PrOverviewList extends Vue {
       `
         query(
           $authoredAllSearch: String!,
-          $authoredAcceptedSearch: String!,
-          $authoredChangesRequestedSearch: String!,
           $reviewRequestedSearch: String!,
           $reviewedBySearch: String!,
         ) {
           authoredAll: search(query: $authoredAllSearch type:ISSUE first:100) { ... prDetails }
-          authoredAccepted: search(query: $authoredAcceptedSearch type:ISSUE first:100) { ... prDetails }
-          authoredChangesRequested: search(query: $authoredChangesRequestedSearch type:ISSUE first:100) { ... prDetails }
           reviewRequested: search(query: $reviewRequestedSearch type:ISSUE first:100) { ... prDetails }
           reviewedBy: search(query: $reviewedBySearch type:ISSUE first:100) { ... prDetails }
         }
@@ -100,11 +140,34 @@ export default class PrOverviewList extends Vue {
               id
               number
               title
+              author {
+                login
+              }
               repository {
                owner {
                   login
                 }
                 name
+              }
+              timelineItems(first: 100) {
+                nodes {
+                  __typename
+                  ... on PullRequestReview {
+                    author {
+                      login
+                    }
+                    state
+                    createdAt
+                  }
+                  ... on ReviewRequestedEvent {
+                    createdAt
+                    requestedReviewer {
+                      ... on User {
+                        login
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -113,13 +176,9 @@ export default class PrOverviewList extends Vue {
       vars,
     );
 
-    const authoredAll = parsePrOverviewNodes(data.authoredAll);
-    const authoredAccepted = parsePrOverviewNodes(data.authoredAccepted);
-    const authoredChangesRequested = parsePrOverviewNodes(data.authoredChangesRequested);
-    const reviewRequested = parsePrOverviewNodes(data.reviewRequested);
-    const reviewedBy = parsePrOverviewNodes(data.reviewedBy);
-
-    const authoredIds = new Set(authoredAll.map((pr) => pr.id));
+    const prOverviewsWithDups = parsePrOverviewNodes(data.authoredAll)
+      .concat(parsePrOverviewNodes(data.reviewRequested))
+      .concat(parsePrOverviewNodes(data.reviewedBy));
 
     const collectById = (prOverviews: PrOverviewI[]): { [key: string]: PrOverviewI } => {
       const collected: { [key: string]: PrOverviewI } = {};
@@ -131,17 +190,40 @@ export default class PrOverviewList extends Vue {
       return collected;
     };
 
-    const authoredActionable = collectById(authoredAccepted.concat(authoredChangesRequested));
-    const authoredWaiting = authoredAll.filter((authored) => authoredActionable[authored.id] === undefined);
+    const authoredActionable = [];
+    const authoredWaiting = [];
+    const reviewedBy = [];
+    const reviewRequested = [];
 
-    const reviewRequestedIds = new Set(reviewRequested.map((pr) => pr.id));
-    const reviewedByFiltered = reviewedBy.filter((pr) => !reviewRequestedIds.has(pr.id) && !authoredIds.has(pr.id));
+    for (const prOverview of Object.values(collectById(prOverviewsWithDups))) {
+      const reviewStates = getReviewStates(prOverview);
+      if (prOverview.authorName === username) {
+        delete reviewStates[username];
+        if (
+          Object.getOwnPropertyNames(reviewStates).length > 0 &&
+          (Object.values(reviewStates).some((state) => state === PrReviewState.CHANGES_REQUESTED) ||
+            Object.values(reviewStates).every(
+              (state) => state === PrReviewState.APPROVED || state === PrReviewState.REVIEW_REQUESTED,
+            ))
+        ) {
+          authoredActionable.push(prOverview);
+        } else {
+          authoredWaiting.push(prOverview);
+        }
+      } else {
+        if (reviewStates[username] === PrReviewState.REVIEW_REQUESTED) {
+          reviewRequested.push(prOverview);
+        } else {
+          reviewedBy.push(prOverview);
+        }
+      }
+    }
 
     this.overviewCategories = [
       { title: 'Blocking others', overviews: reviewRequested },
       { title: 'Actionable', overviews: Object.values(authoredActionable) },
       { title: 'Waiting on reviewers', overviews: authoredWaiting },
-      { title: 'Waiting on author', overviews: reviewedByFiltered },
+      { title: 'Waiting on author', overviews: reviewedBy },
     ];
   }
 }
