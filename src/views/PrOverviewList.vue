@@ -87,7 +87,7 @@ function parseReviewStateEvents(timelineNodes: any[]): PrReviewStateChangeI[] {
 }
 
 function getReviewStates(prOverview: ExtendedPrOverviewI): { [key: string]: PrReviewState } {
-  const states = {};
+  const states: { [key: string]: PrReviewState } = {};
   for (const reviewEvent of prOverview.reviewStateEvents) {
     if (reviewEvent.state !== PrReviewState.COMMENTED) {
       states[reviewEvent.reviewerName] = reviewEvent.state;
@@ -180,8 +180,8 @@ export default class PrOverviewList extends Vue {
       .concat(parsePrOverviewNodes(data.reviewRequested))
       .concat(parsePrOverviewNodes(data.reviewedBy));
 
-    const collectById = (prOverviews: PrOverviewI[]): { [key: string]: PrOverviewI } => {
-      const collected: { [key: string]: PrOverviewI } = {};
+    const collectById = (prOverviews: ExtendedPrOverviewI[]): { [key: string]: ExtendedPrOverviewI } => {
+      const collected: { [key: string]: ExtendedPrOverviewI } = {};
       for (const prOverview of prOverviews) {
         if (collected[prOverview.id] === undefined) {
           collected[prOverview.id] = prOverview;
