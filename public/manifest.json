@@ -1,6 +1,6 @@
 {
-  "name": "github_re_view",
-  "short_name": "github_re_view",
+  "name": "GithubReView",
+  "short_name": "GithubReView",
   "icons": [
     {
       "src": "./img/icons/android-chrome-192x192.png",

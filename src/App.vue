@@ -11,4 +11,8 @@
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
 }
+a,
+a:visited {
+  color: rgb(0, 0, 238);
+}
 </style>

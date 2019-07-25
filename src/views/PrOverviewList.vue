@@ -176,9 +176,13 @@ export default class PrOverviewList extends Vue {
       vars,
     );
 
+    const repoOwnerFilter = this.$route.query.repoOwnerFilter;
     const prOverviewsWithDups = parsePrOverviewNodes(data.authoredAll)
       .concat(parsePrOverviewNodes(data.reviewRequested))
-      .concat(parsePrOverviewNodes(data.reviewedBy));
+      .concat(parsePrOverviewNodes(data.reviewedBy))
+      .filter((prOverview) => {
+        return repoOwnerFilter == null || prOverview.repoOwner === repoOwnerFilter;
+      });
 
     const collectById = (prOverviews: ExtendedPrOverviewI[]): { [key: string]: ExtendedPrOverviewI } => {
       const collected: { [key: string]: ExtendedPrOverviewI } = {};
@@ -201,10 +205,9 @@ export default class PrOverviewList extends Vue {
         delete reviewStates[username];
         if (
           Object.getOwnPropertyNames(reviewStates).length > 0 &&
-          (Object.values(reviewStates).some((state) => state === PrReviewState.CHANGES_REQUESTED) ||
-            Object.values(reviewStates).every(
-              (state) => state === PrReviewState.APPROVED || state === PrReviewState.REVIEW_REQUESTED,
-            ))
+          Object.values(reviewStates).some(
+            (state) => state === PrReviewState.CHANGES_REQUESTED || state === PrReviewState.APPROVED,
+          )
         ) {
           authoredActionable.push(prOverview);
         } else {

@@ -1,4 +1,4 @@
-# github_re_view
+# GithubReView
 
 ## Project setup
 ```
