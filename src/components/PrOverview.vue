@@ -1,5 +1,7 @@
 <template>
   <p>
+    <a :href="`https://www.github.com/${repoOwner}/${repoName}/pull/${prNumber}`">[GH]</a>
+    •
     <router-link :to="{ name: 'prDetails', params: prOverview }">
       {{ prOverview.title }}
     </router-link>
