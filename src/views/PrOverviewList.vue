@@ -26,6 +26,7 @@ enum PrReviewState {
   APPROVED = 'APPROVED',
   CHANGES_REQUESTED = 'CHANGES_REQUESTED',
   DISMISSED = 'DISMISSED',
+  REVIEW_REMOVED = 'REVIEW_REMOVED',
 }
 
 interface PrOverviewCategoryI {
@@ -79,6 +80,12 @@ function parseReviewStateEvents(timelineNodes: any[]): PrReviewStateChangeI[] {
       events.push({
         reviewerName: node.requestedReviewer.login,
         state: PrReviewState.REVIEW_REQUESTED,
+        createdAt: new Date(node.createdAt),
+      });
+    } else if (node.__typename === 'ReviewRequestRemovedEvent') {
+      events.push({
+        reviewerName: node.requestedReviewer.login,
+        state: PrReviewState.REVIEW_REMOVED,
         createdAt: new Date(node.createdAt),
       });
     }
@@ -160,6 +167,14 @@ export default class PrOverviewList extends Vue {
                     createdAt
                   }
                   ... on ReviewRequestedEvent {
+                    createdAt
+                    requestedReviewer {
+                      ... on User {
+                        login
+                      }
+                    }
+                  }
+                  ... on ReviewRequestRemovedEvent {
                     createdAt
                     requestedReviewer {
                       ... on User {
