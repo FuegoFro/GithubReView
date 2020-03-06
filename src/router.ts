@@ -41,6 +41,17 @@ const router = new Router({
         title: 'Login',
       },
     },
+    {
+      path: '/test',
+      name: 'prDetailsTest',
+      component: PrDetails,
+      props: (route: Route) => {
+        return { repoOwner: 'test-owner', repoName: 'test-repo', prNumber: 123 };
+      },
+      meta: {
+        title: 'Test Details',
+      },
+    },
   ],
 });
 

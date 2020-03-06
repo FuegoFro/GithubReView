@@ -1,9 +1,9 @@
 <template>
-  <p v-if="activityItems === null"><i>Loading...</i></p>
+  <p v-if="detailData === null"><i>Loading...</i></p>
   <div v-else>
-    <h1>{{ title }}</h1>
+    <h1>{{ detailData.title }}</h1>
     <h2>Activity</h2>
-    <template v-for="activityItem in activityItems">
+    <template v-for="activityItem in detailData.activityItems">
       <template v-if="isCommit(activityItem)">
         <h3>
           <b>{{ activityItem.authorName }}</b> pushed a commit at <i>{{ activityItem.sortDate }}</i>
@@ -33,12 +33,16 @@
         <hr />
       </template>
     </template>
+    <h2>Changes</h2>
+    <file-diff v-for="diff in detailData.diffs" :diff="diff" :key="diff.path"></file-diff>
   </div>
 </template>
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import { graphqlQuery } from '@/graphql_helpers';
+import { makeDummyPrDetailData } from '@/dummyData';
+import FileDiff, { FileDiffI } from '@/components/FileDiff.vue';
 
 function compareValues<T extends string | number>(a: T, b: T): number {
   if (a === b) {
@@ -56,7 +60,7 @@ interface BaseCommentI {
   createdAt: Date;
 }
 
-interface InlineCommentI extends BaseCommentI {
+export interface InlineCommentI extends BaseCommentI {
   path: string;
   line: number;
 }
@@ -123,16 +127,25 @@ function parseCommitInfo(rawCommitNode: any): CommitInfoI {
   };
 }
 
-@Component({})
+export interface PrDetailData {
+  title: string;
+  activityItems: Array<TopLevelCommentI | CommitInfoI>;
+  diffs: FileDiffI[];
+}
+
+@Component({ components: { FileDiff } })
 export default class PrDetails extends Vue {
-  title: string | null = null;
-  activityItems: Array<TopLevelCommentI | CommitInfoI> | null = null;
+  detailData: PrDetailData | null = null;
   @Prop(String) repoOwner!: string;
   @Prop(String) repoName!: string;
   @Prop(Number) prNumber!: number;
 
   // noinspection JSUnusedGlobalSymbols
   async mounted() {
+    if (this.repoOwner === 'test-owner' && this.repoName === 'test-repo' && this.prNumber === 123) {
+      this.detailData = makeDummyPrDetailData();
+      return;
+    }
     const rawPr = await this.fetchData();
     this.populateData(rawPr);
   }
@@ -196,8 +209,6 @@ export default class PrDetails extends Vue {
   private populateData(data: any) {
     const rawPr = data.repository.pullRequest;
 
-    this.title = rawPr.title;
-
     const rawComments = rawPr.comments.nodes.concat(rawPr.reviews.nodes);
     const comments: TopLevelCommentI[] = rawComments.map(parseTopLevelComment);
 
@@ -209,7 +220,12 @@ export default class PrDetails extends Vue {
       const bTime = this.isCommit(b) ? b.sortDate : b.createdAt;
       return compareValues(aTime.getTime(), bTime.getTime());
     });
-    this.activityItems = items;
+
+    this.detailData = {
+      title: rawPr.title,
+      activityItems: items,
+      diffs: [],
+    };
   }
 
   private isCommit(item: TopLevelCommentI | CommitInfoI): item is CommitInfoI {
