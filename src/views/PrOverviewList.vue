@@ -122,8 +122,10 @@ export default class PrOverviewList extends Vue {
     //  - Review requested after changes requested (Blocking others)
     //  - Accepted by you (Waiting on others)
 
-    const username = await viewerUsername();
-    const searchPrefix = 'is:open is:pr archived:false';
+    const username = (this.$route.query.username || (await viewerUsername())).toString();
+    const repoOwnerFilter = this.$route.query.repoOwnerFilter;
+    const repoOwnerExtraSearchTerm = repoOwnerFilter ? ` user:${repoOwnerFilter}` : '';
+    const searchPrefix = 'is:open is:pr archived:false' + repoOwnerExtraSearchTerm;
     const vars = {
       authoredAllSearch: `${searchPrefix} author:${username}`,
       reviewRequestedSearch: `${searchPrefix} review-requested:${username}`,
@@ -191,13 +193,9 @@ export default class PrOverviewList extends Vue {
       vars,
     );
 
-    const repoOwnerFilter = this.$route.query.repoOwnerFilter;
     const prOverviewsWithDups = parsePrOverviewNodes(data.authoredAll)
       .concat(parsePrOverviewNodes(data.reviewRequested))
-      .concat(parsePrOverviewNodes(data.reviewedBy))
-      .filter((prOverview) => {
-        return repoOwnerFilter == null || prOverview.repoOwner === repoOwnerFilter;
-      });
+      .concat(parsePrOverviewNodes(data.reviewedBy));
 
     const collectById = (prOverviews: ExtendedPrOverviewI[]): { [key: string]: ExtendedPrOverviewI } => {
       const collected: { [key: string]: ExtendedPrOverviewI } = {};
