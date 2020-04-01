@@ -53,7 +53,7 @@ function parsePrOverview(response: any): ExtendedPrOverviewI {
   const num = response.number;
   const repoOwner = response.repository.owner.login;
   const repoName = response.repository.name;
-  const authorName = response.author.login;
+  const authorName = response.author ? response.author.login : '<unknown>';
   const reviewStateEvents = parseReviewStateEvents(response.timelineItems.nodes);
 
   return {
