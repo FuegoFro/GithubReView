@@ -110,6 +110,15 @@ export default class PrOverviewList extends Vue {
   overviewCategories: PrOverviewCategoryI[] | null = null;
 
   async mounted() {
+    this.fetchDataLoop();
+  }
+
+  async fetchDataLoop() {
+    await this.fetchData();
+    setTimeout(() => this.fetchDataLoop(), 60_000);
+  }
+
+  async fetchData() {
     // # Ideal categorization
     //
     // Authored:
