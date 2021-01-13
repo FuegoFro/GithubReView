@@ -13,6 +13,10 @@ export async function graphqlQuery(query: string, variables: { [key: string]: an
     throw Error('Trying to make a request without a token');
   }
   const response = await axios.post(URL, data, { headers: { Authorization: `bearer ${token}` } });
+  if (response.data.errors) {
+    // tslint:disable-next-line:no-console
+    console.error(response.data.errors);
+  }
   return response.data.data;
 }
 

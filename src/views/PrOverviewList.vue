@@ -103,6 +103,16 @@ function getReviewStates(prOverview: ExtendedPrOverviewI): { [key: string]: PrRe
   return states;
 }
 
+function getHasCommented(prOverview: ExtendedPrOverviewI): { [key: string]: boolean } {
+  const hasCommented: { [key: string]: boolean } = {};
+  for (const reviewEvent of prOverview.reviewStateEvents) {
+    if (reviewEvent.state === PrReviewState.COMMENTED) {
+      hasCommented[reviewEvent.reviewerName] = true;
+    }
+  }
+  return hasCommented;
+}
+
 @Component({
   components: { PrOverview },
 })
@@ -219,10 +229,12 @@ export default class PrOverviewList extends Vue {
     const authoredActionable = [];
     const authoredWaiting = [];
     const reviewedBy = [];
-    const reviewRequested = [];
+    const reviewRequestedDirect = [];
+    const reviewRequestedTeam = [];
 
     for (const prOverview of Object.values(collectById(prOverviewsWithDups))) {
       const reviewStates = getReviewStates(prOverview);
+      const hasCommented = getHasCommented(prOverview);
       if (prOverview.authorName === username) {
         delete reviewStates[username];
         if (
@@ -237,7 +249,9 @@ export default class PrOverviewList extends Vue {
         }
       } else {
         if (reviewStates[username] === PrReviewState.REVIEW_REQUESTED) {
-          reviewRequested.push(prOverview);
+          reviewRequestedDirect.push(prOverview);
+        } else if (reviewStates[username] === undefined && !hasCommented[username]) {
+          reviewRequestedTeam.push(prOverview);
         } else {
           reviewedBy.push(prOverview);
         }
@@ -245,7 +259,8 @@ export default class PrOverviewList extends Vue {
     }
 
     this.overviewCategories = [
-      { title: 'Blocking others', overviews: reviewRequested },
+      { title: 'Blocking others (direct)', overviews: reviewRequestedDirect },
+      { title: 'Blocking others (team)', overviews: reviewRequestedTeam },
       { title: 'Actionable', overviews: Object.values(authoredActionable) },
       { title: 'Waiting on reviewers', overviews: authoredWaiting },
       { title: 'Waiting on author', overviews: reviewedBy },
