@@ -147,7 +147,7 @@ export default class PrOverviewList extends Vue {
     const searchPrefix = 'is:open is:pr archived:false' + repoOwnerExtraSearchTerm;
     const vars = {
       authoredAllSearch: `${searchPrefix} author:${username}`,
-      reviewRequestedSearch: `${searchPrefix} review-requested:${username}`,
+      reviewRequestedSearch: `${searchPrefix} draft:false review-requested:${username}`,
       reviewedBySearch: `${searchPrefix}  reviewed-by:${username}`,
     };
 

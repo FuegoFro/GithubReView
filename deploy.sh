@@ -13,9 +13,9 @@ ORIGIN_URL=$(git remote get-url origin)
 # navigate into the build output directory and push to remote
 cd "${DIR}/dist"
 ln -s index.html 404.html
-git init
+git init -b gh-pages
 git add -A
 git commit -m 'deploy'
 # Deploy to https://<USERNAME>.github.io/<REPO>
-git push -f "${ORIGIN_URL}" master:gh-pages
+git push -f "${ORIGIN_URL}" gh-pages:gh-pages
 
