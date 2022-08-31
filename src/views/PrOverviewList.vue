@@ -148,7 +148,7 @@ export default class PrOverviewList extends Vue {
     const vars = {
       authoredAllSearch: `${searchPrefix} author:${username}`,
       reviewRequestedSearch: `${searchPrefix} draft:false review-requested:${username}`,
-      reviewedBySearch: `${searchPrefix}  reviewed-by:${username}`,
+      reviewedBySearch: `${searchPrefix} draft:false reviewed-by:${username}`,
     };
 
     const data = await graphqlQuery(
