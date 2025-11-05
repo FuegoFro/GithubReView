@@ -42,6 +42,7 @@ export async function viewerUsername(): Promise<string> {
  */
 const prDetailsFragment = {
   nodes: {
+    __typename: true,
     on_PullRequest: {
       id: true,
       number: true,

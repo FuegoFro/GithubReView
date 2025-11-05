@@ -48,7 +48,7 @@ export function usePrData(repoOwnerFilter: string = ''): UsePrDataResult {
         ...(data.authoredAll.nodes ?? []),
         ...(data.reviewRequested.nodes ?? []),
         ...(data.reviewedBy.nodes ?? []),
-      ];
+      ].filter((pr): pr is PullRequest => pr?.__typename === 'PullRequest');
 
       setPullRequests(allPrs);
       setIsLoading(false);

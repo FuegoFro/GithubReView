@@ -163,7 +163,7 @@ export default function PrOverviewList() {
 
       {categories.map((category) => (
         <div key={category.title} style={{ marginBottom: '28px' }}>
-          <h2 style={{ fontSize: '16px', margin: '0 0 10px 0', fontWeight: '600', color: '#24292f', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '13px' }}>{category.title}</h2>
+          <h2 style={{ margin: '0 0 10px 0', fontWeight: '600', color: '#24292f', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '13px' }}>{category.title}</h2>
           {category.overviews.length === 0 ? (
             <p style={{ color: '#8b949e', fontSize: '13px', fontStyle: 'italic', margin: '0 0 0 0' }}>No PRs in this category</p>
           ) : (
