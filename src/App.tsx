@@ -1,9 +1,8 @@
 import PrOverviewList from './components/PrOverviewList'
-import './App.css'
 
 function App() {
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="px-6 py-5 max-w-7xl mx-auto">
       <PrOverviewList />
     </div>
   )

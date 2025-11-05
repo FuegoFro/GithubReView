@@ -26,45 +26,30 @@ export default function TokenSetup({ onTokenSubmit, error }: TokenSetupProps) {
     <div>
       <h2>Authentication Required</h2>
       <p>Please enter your GitHub personal access token to view PRs.</p>
-      
-      <form onSubmit={handleSubmit} style={{ margin: '20px 0' }}>
-        <div style={{ marginBottom: '10px' }}>
+
+      <form onSubmit={handleSubmit} className="my-5">
+        <div className="mb-2.5">
           <input
             type="password"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
             placeholder="Paste your GitHub token here"
-            style={{
-              width: '400px',
-              padding: '8px',
-              fontSize: '14px',
-              border: '1px solid #ccc',
-              borderRadius: '4px'
-            }}
+            className="w-96 px-2 py-2 text-sm border border-gray-300 rounded disabled:opacity-60 disabled:cursor-not-allowed"
             disabled={isSubmitting}
           />
         </div>
         <button
           type="submit"
           disabled={!tokenInput.trim() || isSubmitting}
-          style={{
-            padding: '8px 16px',
-            fontSize: '14px',
-            backgroundColor: '#0366d6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: tokenInput.trim() && !isSubmitting ? 'pointer' : 'not-allowed',
-            opacity: tokenInput.trim() && !isSubmitting ? 1 : 0.6
-          }}
+          className="px-4 py-2 text-sm bg-[#0366d6] text-white border-none rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Verifying...' : 'Save Token'}
         </button>
       </form>
-      
-      <details style={{ marginTop: '20px' }}>
+
+      <details className="mt-5">
         <summary>How to get a GitHub token</summary>
-        <ol style={{ marginTop: '10px' }}>
+        <ol className="mt-2.5">
           <li>Go to <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">GitHub Settings → Personal Access Tokens → Tokens (classic)</a></li>
           <li>Click "Generate new token (classic)"</li>
           <li>Give it a name like "PR Review Dashboard"</li>
@@ -73,11 +58,11 @@ export default function TokenSetup({ onTokenSubmit, error }: TokenSetupProps) {
           <li>Copy the token and paste it above</li>
         </ol>
       </details>
-      
+
       {error && (
-        <details style={{ marginTop: '10px' }}>
+        <details className="mt-2.5">
           <summary>Error details</summary>
-          <pre style={{ color: 'red', fontSize: '12px' }}>{error}</pre>
+          <pre className="text-red-600 text-xs">{error}</pre>
         </details>
       )}
     </div>

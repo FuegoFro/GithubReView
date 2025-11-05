@@ -59,24 +59,12 @@ export default function PrOverviewList() {
 
   return (
     <div>
-      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <h1 style={{ fontSize: '28px', margin: '0', fontWeight: '600', color: '#24292f' }}>GitHub PR Review Dashboard</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] m-0 font-semibold text-gh-text">GitHub PR Review Dashboard</h1>
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            style={{
-              padding: '6px 12px',
-              fontSize: '13px',
-              backgroundColor: 'white',
-              color: '#24292f',
-              border: '1px solid #d0d7de',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
+            className="px-3 py-1.5 text-[13px] bg-white text-gh-text border border-gh-border rounded-md cursor-pointer font-medium flex items-center gap-1.5"
             title="Filter settings"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -85,20 +73,11 @@ export default function PrOverviewList() {
             Filter
           </button>
           {repoOwnerFilter && (
-            <span style={{ fontSize: '12px', color: '#57606a' }}>
+            <span className="text-xs text-gh-text-secondary">
               <strong>{repoOwnerFilter}</strong>
               <button
                 onClick={() => { updateRepoOwnerFilter(''); applyFilter(); }}
-                style={{
-                  marginLeft: '6px',
-                  padding: '2px 6px',
-                  fontSize: '11px',
-                  backgroundColor: 'transparent',
-                  color: '#0969da',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
+                className="ml-1.5 px-1.5 py-0.5 text-[11px] bg-transparent text-gh-link border-none cursor-pointer underline"
               >
                 clear
               </button>
@@ -108,8 +87,8 @@ export default function PrOverviewList() {
       </div>
 
       {isFilterOpen && (
-        <div style={{ marginBottom: '20px', padding: '12px 16px', backgroundColor: 'white', border: '1px solid #d0d7de', borderRadius: '6px' }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="mb-5 px-4 py-3 bg-white border border-gh-border rounded-md">
+          <div className="flex gap-2 items-center">
             <input
               id="repoOwnerFilter"
               type="text"
@@ -117,43 +96,17 @@ export default function PrOverviewList() {
               onChange={(e) => updateRepoOwnerFilter(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') applyFilter(); }}
               placeholder="Filter by repo owner (e.g., microsoft, google, facebook)"
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                fontSize: '13px',
-                border: '1px solid #d0d7de',
-                borderRadius: '6px',
-                backgroundColor: '#f6f8fa',
-                color: '#24292f'
-              }}
+              className="flex-1 px-2.5 py-1.5 text-[13px] border border-gh-border rounded-md bg-gh-bg text-gh-text"
             />
             <button
               onClick={applyFilter}
-              style={{
-                padding: '6px 12px',
-                fontSize: '13px',
-                backgroundColor: '#2da44e',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500'
-              }}
+              className="px-3 py-1.5 text-[13px] bg-gh-green text-white border-none rounded-md cursor-pointer font-medium"
             >
               Apply
             </button>
             <button
               onClick={() => setIsFilterOpen(false)}
-              style={{
-                padding: '6px 12px',
-                fontSize: '13px',
-                backgroundColor: '#f6f8fa',
-                color: '#24292f',
-                border: '1px solid #d0d7de',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500'
-              }}
+              className="px-3 py-1.5 text-[13px] bg-gh-bg text-gh-text border border-gh-border rounded-md cursor-pointer font-medium"
             >
               Cancel
             </button>
@@ -162,10 +115,10 @@ export default function PrOverviewList() {
       )}
 
       {categories.map((category) => (
-        <div key={category.title} style={{ marginBottom: '28px' }}>
-          <h2 style={{ margin: '0 0 10px 0', fontWeight: '600', color: '#24292f', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '13px' }}>{category.title}</h2>
+        <div key={category.title} className="mb-7">
+          <h2 className="m-0 mb-2.5 font-semibold text-gh-text uppercase tracking-wider text-[13px]">{category.title}</h2>
           {category.overviews.length === 0 ? (
-            <p style={{ color: '#8b949e', fontSize: '13px', fontStyle: 'italic', margin: '0 0 0 0' }}>No PRs in this category</p>
+            <p className="text-gh-text-muted text-[13px] italic m-0">No PRs in this category</p>
           ) : (
             category.overviews.map((overview) => (
               <PrOverview key={overview.id} prOverview={overview} />
