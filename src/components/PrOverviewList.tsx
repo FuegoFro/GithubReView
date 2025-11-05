@@ -1,265 +1,23 @@
-import { useState, useEffect } from 'react';
-import { graphqlQuery, viewerUsername } from '../graphql_helpers';
-import type { PrOverviewCategoryI, ExtendedPrOverviewI, PrReviewStateChangeI } from '../types';
-import { PrReviewState } from '../types';
+import { useCallback, useState } from 'react';
+import { usePrData } from '../hooks/usePrData';
+import { usePrCategories } from '../hooks/usePrCategories';
+import { LOCAL_STORAGE_KEYS } from '../constants';
 import PrOverview from './PrOverview';
 import TokenSetup from './TokenSetup';
 
-function parsePrOverviewNodes(response: any): ExtendedPrOverviewI[] {
-  return response.nodes.map(parsePrOverview);
-}
-
-function parsePrOverview(response: any): ExtendedPrOverviewI {
-  const num = response.number;
-  const repoOwner = response.repository.owner.login;
-  const repoName = response.repository.name;
-  const authorName = response.author ? response.author.login : '<unknown>';
-  const reviewStateEvents = parseReviewStateEvents(response.timelineItems.nodes);
-
-  return {
-    id: response.id,
-    title: response.title,
-    prNumber: num,
-    repoOwner,
-    repoName,
-    authorName,
-    reviewStateEvents,
-  };
-}
-
-function parseReviewStateEvents(timelineNodes: any[]): PrReviewStateChangeI[] {
-  const events = [];
-  for (const node of timelineNodes) {
-    if (node.__typename === 'PullRequestReview') {
-      events.push({
-        reviewerName: node.author.login,
-        state: node.state,
-        createdAt: new Date(node.createdAt),
-      });
-    } else if (node.__typename === 'ReviewRequestedEvent') {
-      events.push({
-        reviewerName: node.requestedReviewer.login,
-        state: PrReviewState.REVIEW_REQUESTED,
-        createdAt: new Date(node.createdAt),
-      });
-    } else if (node.__typename === 'ReviewRequestRemovedEvent') {
-      events.push({
-        reviewerName: node.requestedReviewer.login,
-        state: PrReviewState.REVIEW_REMOVED,
-        createdAt: new Date(node.createdAt),
-      });
-    }
-  }
-  return events;
-}
-
-function getReviewStates(prOverview: ExtendedPrOverviewI): { [key: string]: PrReviewState } {
-  const states: { [key: string]: PrReviewState } = {};
-  for (const reviewEvent of prOverview.reviewStateEvents) {
-    if (reviewEvent.state !== PrReviewState.COMMENTED) {
-      states[reviewEvent.reviewerName] = reviewEvent.state;
-    }
-  }
-  return states;
-}
-
-function getHasCommented(prOverview: ExtendedPrOverviewI): { [key: string]: boolean } {
-  const hasCommented: { [key: string]: boolean } = {};
-  for (const reviewEvent of prOverview.reviewStateEvents) {
-    if (reviewEvent.state === PrReviewState.COMMENTED) {
-      hasCommented[reviewEvent.reviewerName] = true;
-    }
-  }
-  return hasCommented;
-}
-
 export default function PrOverviewList() {
-  const [overviewCategories, setOverviewCategories] = useState<PrOverviewCategoryI[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [repoOwnerFilter, setRepoOwnerFilter] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('repoOwnerFilter') || '';
   });
 
-  useEffect(() => {
-    let intervalId: number;
+  const { pullRequests, username, error, isLoading, refetch } = usePrData(repoOwnerFilter);
+  const categories = usePrCategories(pullRequests, username);
 
-    const fetchDataLoop = async () => {
-      await fetchData();
-      intervalId = setTimeout(fetchDataLoop, 60000);
-    };
-
-    fetchDataLoop();
-
-    return () => {
-      if (intervalId) {
-        clearTimeout(intervalId);
-      }
-    };
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setError(null);
-      const username = await viewerUsername();
-      
-      // Use current repoOwnerFilter state
-      const repoOwnerExtraSearchTerm = repoOwnerFilter ? ` user:${repoOwnerFilter}` : '';
-    const searchPrefix = 'is:open is:pr archived:false' + repoOwnerExtraSearchTerm;
-    const vars = {
-      authoredAllSearch: `${searchPrefix} author:${username}`,
-      reviewRequestedSearch: `${searchPrefix} draft:false review-requested:${username}`,
-      reviewedBySearch: `${searchPrefix} draft:false reviewed-by:${username}`,
-    };
-
-    const data = await graphqlQuery(
-      `
-        query(
-          $authoredAllSearch: String!,
-          $reviewRequestedSearch: String!,
-          $reviewedBySearch: String!,
-        ) {
-          authoredAll: search(query: $authoredAllSearch type:ISSUE first:100) { ... prDetails }
-          reviewRequested: search(query: $reviewRequestedSearch type:ISSUE first:100) { ... prDetails }
-          reviewedBy: search(query: $reviewedBySearch type:ISSUE first:100) { ... prDetails }
-        }
-        fragment prDetails on SearchResultItemConnection {
-          nodes {
-            ... on PullRequest {
-              id
-              number
-              title
-              author {
-                login
-              }
-              repository {
-               owner {
-                  login
-                }
-                name
-              }
-              timelineItems(first: 100) {
-                nodes {
-                  __typename
-                  ... on PullRequestReview {
-                    author {
-                      login
-                    }
-                    state
-                    createdAt
-                  }
-                  ... on ReviewRequestedEvent {
-                    createdAt
-                    requestedReviewer {
-                      ... on User {
-                        login
-                      }
-                    }
-                  }
-                  ... on ReviewRequestRemovedEvent {
-                    createdAt
-                    requestedReviewer {
-                      ... on User {
-                        login
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `,
-      vars,
-    );
-
-    const prOverviewsWithDups = parsePrOverviewNodes(data.authoredAll)
-      .concat(parsePrOverviewNodes(data.reviewRequested))
-      .concat(parsePrOverviewNodes(data.reviewedBy));
-
-    const collectById = (prOverviews: ExtendedPrOverviewI[]): { [key: string]: ExtendedPrOverviewI } => {
-      const collected: { [key: string]: ExtendedPrOverviewI } = {};
-      for (const prOverview of prOverviews) {
-        if (collected[prOverview.id] === undefined) {
-          collected[prOverview.id] = prOverview;
-        }
-      }
-      return collected;
-    };
-
-    const authoredActionable = [];
-    const authoredWaiting = [];
-    const reviewedBy = [];
-    const reviewRequestedDirect = [];
-    const reviewRequestedTeam = [];
-
-    for (const prOverview of Object.values(collectById(prOverviewsWithDups))) {
-      const reviewStates = getReviewStates(prOverview);
-      const hasCommented = getHasCommented(prOverview);
-      if (prOverview.authorName === username) {
-        delete reviewStates[username];
-        if (
-          Object.getOwnPropertyNames(reviewStates).length > 0 &&
-          Object.values(reviewStates).some(
-            (state) => state === PrReviewState.CHANGES_REQUESTED || state === PrReviewState.APPROVED,
-          )
-        ) {
-          authoredActionable.push(prOverview);
-        } else {
-          authoredWaiting.push(prOverview);
-        }
-      } else {
-        if (reviewStates[username] === PrReviewState.REVIEW_REQUESTED) {
-          reviewRequestedDirect.push(prOverview);
-        } else if (reviewStates[username] === undefined && !hasCommented[username]) {
-          reviewRequestedTeam.push(prOverview);
-        } else {
-          reviewedBy.push(prOverview);
-        }
-      }
-    }
-
-    setOverviewCategories([
-      { title: 'Blocking others (direct)', overviews: reviewRequestedDirect },
-      { title: 'Blocking others (team)', overviews: reviewRequestedTeam },
-      { title: 'Actionable', overviews: authoredActionable },
-      { title: 'Waiting on reviewers', overviews: authoredWaiting },
-      { title: 'Waiting on author', overviews: reviewedBy },
-    ]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      setOverviewCategories([]);
-    }
-  };
-
-  const handleTokenSubmit = async (token: string) => {
-    localStorage.setItem('token', token);
-    localStorage.removeItem('viewerUsername'); // Clear cached username
-    
-    try {
-      await fetchData();
-    } catch (err) {
-      // Token was invalid, remove it
-      localStorage.removeItem('token');
-      throw new Error('Invalid token. Please check your token and try again.');
-    }
-  };
-
-  if (error) {
-    return <TokenSetup onTokenSubmit={handleTokenSubmit} error={error} />;
-  }
-
-  if (overviewCategories === null) {
-    return (
-      <div>
-        <p><i>Loading...</i></p>
-      </div>
-    );
-  }
-
-  const updateRepoOwnerFilter = (newFilter: string) => {
+  const updateRepoOwnerFilter = useCallback((newFilter: string) => {
     setRepoOwnerFilter(newFilter);
-    
+
     // Update URL without page reload
     const url = new URL(window.location.href);
     if (newFilter) {
@@ -268,77 +26,151 @@ export default function PrOverviewList() {
       url.searchParams.delete('repoOwnerFilter');
     }
     window.history.replaceState({}, '', url.toString());
-    
-    // Refetch data with new filter
-    setOverviewCategories(null); // Show loading state
-    fetchData();
+  }, []);
+
+  const applyFilter = useCallback(() => {
+    setIsFilterOpen(false);
+    refetch();
+  }, [refetch]);
+
+  const handleTokenSubmit = async (token: string) => {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.TOKEN, token);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.VIEWER_USERNAME);
+
+    try {
+      await refetch();
+    } catch {
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.TOKEN);
+      throw new Error('Invalid token. Please check your token and try again.');
+    }
   };
+
+  if (error) {
+    return <TokenSetup onTokenSubmit={handleTokenSubmit} error={error} />;
+  }
+
+  if (isLoading || categories === null) {
+    return (
+      <div>
+        <p><i>Loading...</i></p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-        <label htmlFor="repoOwnerFilter" style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
-          Filter by Repository Owner:
-        </label>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <input
-            id="repoOwnerFilter"
-            type="text"
-            value={repoOwnerFilter}
-            onChange={(e) => setRepoOwnerFilter(e.target.value)}
-            placeholder="e.g., microsoft, google, facebook (leave empty for all)"
-            style={{
-              flex: 1,
-              padding: '6px',
-              fontSize: '13px',
-              border: '1px solid #ccc',
-              borderRadius: '3px'
-            }}
-          />
+      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <h1 style={{ fontSize: '28px', margin: '0', fontWeight: '600', color: '#24292f' }}>GitHub PR Review Dashboard</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
-            onClick={() => updateRepoOwnerFilter(repoOwnerFilter)}
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
             style={{
               padding: '6px 12px',
               fontSize: '13px',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '3px',
-              cursor: 'pointer'
+              backgroundColor: 'white',
+              color: '#24292f',
+              border: '1px solid #d0d7de',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
+            title="Filter settings"
           >
-            Apply Filter
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.6 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.6 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"></path>
+            </svg>
+            Filter
           </button>
           {repoOwnerFilter && (
+            <span style={{ fontSize: '12px', color: '#57606a' }}>
+              <strong>{repoOwnerFilter}</strong>
+              <button
+                onClick={() => { updateRepoOwnerFilter(''); applyFilter(); }}
+                style={{
+                  marginLeft: '6px',
+                  padding: '2px 6px',
+                  fontSize: '11px',
+                  backgroundColor: 'transparent',
+                  color: '#0969da',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                clear
+              </button>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {isFilterOpen && (
+        <div style={{ marginBottom: '20px', padding: '12px 16px', backgroundColor: 'white', border: '1px solid #d0d7de', borderRadius: '6px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input
+              id="repoOwnerFilter"
+              type="text"
+              value={repoOwnerFilter}
+              onChange={(e) => updateRepoOwnerFilter(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyFilter(); }}
+              placeholder="Filter by repo owner (e.g., microsoft, google, facebook)"
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                fontSize: '13px',
+                border: '1px solid #d0d7de',
+                borderRadius: '6px',
+                backgroundColor: '#f6f8fa',
+                color: '#24292f'
+              }}
+            />
             <button
-              onClick={() => updateRepoOwnerFilter('')}
+              onClick={applyFilter}
               style={{
                 padding: '6px 12px',
                 fontSize: '13px',
-                backgroundColor: '#6c757d',
+                backgroundColor: '#2da44e',
                 color: 'white',
                 border: 'none',
-                borderRadius: '3px',
-                cursor: 'pointer'
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500'
               }}
             >
-              Clear
+              Apply
             </button>
-          )}
+            <button
+              onClick={() => setIsFilterOpen(false)}
+              style={{
+                padding: '6px 12px',
+                fontSize: '13px',
+                backgroundColor: '#f6f8fa',
+                color: '#24292f',
+                border: '1px solid #d0d7de',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-        {repoOwnerFilter && (
-          <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#666' }}>
-            Showing PRs from repositories owned by: <strong>{repoOwnerFilter}</strong>
-          </p>
-        )}
-      </div>
-      
-      {overviewCategories.map((overviewCategory) => (
-        <div key={overviewCategory.title}>
-          <h2 style={{ fontSize: '18px', margin: '15px 0 8px 0', fontWeight: '600' }}>{overviewCategory.title}</h2>
-          {overviewCategory.overviews.map((overview) => (
-            <PrOverview key={overview.id} prOverview={overview} />
-          ))}
+      )}
+
+      {categories.map((category) => (
+        <div key={category.title} style={{ marginBottom: '28px' }}>
+          <h2 style={{ fontSize: '16px', margin: '0 0 10px 0', fontWeight: '600', color: '#24292f', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '13px' }}>{category.title}</h2>
+          {category.overviews.length === 0 ? (
+            <p style={{ color: '#8b949e', fontSize: '13px', fontStyle: 'italic', margin: '0 0 0 0' }}>No PRs in this category</p>
+          ) : (
+            category.overviews.map((overview) => (
+              <PrOverview key={overview.id} prOverview={overview} />
+            ))
+          )}
         </div>
       ))}
     </div>
